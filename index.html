@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="UTF-8">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0">
+		<title>Worked example from lecture notes</title>
+		<style>
+			#bcanvas, #fcanvas
+			{
+				border:1px solid black;
+				left: 5px;
+				top: 5px;
+				width:500px;
+				height:500px;
+				position: absolute;
+			}
+			
+
+
+			#loadingMessage
+			{
+				position:absolute;
+				top:100px;
+				left:100px;
+				z-index:100;
+				font-size:50px;
+			}
+			
+
+		</style>
+	</head>
+
+	<body>
+		<canvas id = "bcanvas" style = "z-index: 0">
+			Your browser does not support the HTML5 'Canvas' tag.
+			
+		</canvas>
+		<br>
+		<canvas id = "fcanvas" style = "z-index: 1">
+			Your browser does not support the HTML5 'Canvas' tag.
+		</canvas>
+	</body>
+</html> 
+
+
+<script src = "objects.js"></script>
+<script>
+
+
+// Canvas & Context
+// Foreground Canvas
+var forecanvas;
+var fctx;
+// Background Canvas
+var backcanvas;
+var bctx;
+// Main Canvas
+var maincanvas
+var mctx;
+
+/**
+*	Game State Variables
+**/
+	// Array of NPCs and PC
+	var characters = [];
+	// Player Object
+	var player;
+	var playerName;
+	
+/**
+*
+**/
+
+// Constants
+var CANVAS_WIDTH = 500;
+var CANVAS_HEIGHT = 500;
+// Tile Data
+ var mapData = 
+	[
+		[0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 1, 1, 1, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 1, 1, 0, 0],
+		[1, 1, 1, 0, 0, 0, 0, 0],
+		[0, 0, 0, 0, 0, 0, 0, 0]
+	];
+var map = []; // Or you could call it "key"
+
+window.onload = onAllAssetsLoaded;
+document.write("<div id='loadingMessage'>Loading...</div>");
+
+// On load
+function onAllAssetsLoaded(){
+    document.getElementById('loadingMessage').style.visibility = "hidden";
+
+	
+    forecanvas = document.getElementById("fcanvas");
+    fctx = forecanvas.getContext("2d");
+	
+	backcanvas = document.getElementById("bcanvas");
+    bctx = backcanvas.getContext("2d");
+	
+    forecanvas.width = CANVAS_WIDTH;
+    forecanvas.height = CANVAS_HEIGHT;
+	backcanvas.width = CANVAS_WIDTH;
+    backcanvas.height = CANVAS_HEIGHT;
+	
+	gameSetup();
+}
+
+function gameSetup(){
+	roundSetup();
+	renderBackground();
+	renderForeground();
+}
+
+function roundSetup(){
+	renderCanvasInterval = setInterval(update, 5);  // game loop
+	player = new Player(1,1,64,64);
+}
+
+
+function renderBackground(){
+	bctx.clearRect(0, 0, backcanvas.width, backcanvas.height);
+	for(var x = 0; x < mapData.length; x++){
+		for(var y = 0; y < mapData[0].length; y++){
+			if(mapData[x][y] == 0){
+				bctx.fillStyle = "#ffffff";
+				bctx.fillRect(x * 64, y * 64, 64, 64);
+			}
+			else{
+				bctx.fillStyle = "#009900";
+				bctx.fillRect(x * 64, y * 64, 64, 64);
+			}
+		}
+	}
+}
+
+function renderForeground(){
+	fctx.clearRect(0, 0, forecanvas.width, forecanvas.height);
+	player.updatePlayer();
+	player.draw();
+	
+	
+}
+
+function update(){
+	renderForeground();
+}
+
+/*
+function keydownHandler(e){
+	// left
+	if (e.keyCode === 37){
+        player.move(1);
+    }
+	// right
+    else if (e.keyCode === 39){
+        player.move(2);
+    }
+	// up
+	else if (e.keyCode === 38){
+        player.move(3);
+    }
+	// down
+    else if (e.keyCode === 40){
+        player.move(4);
+    }
+}*/
+
+
+onkeydown = onkeyup = function(e){
+    e = e || event; // to deal with IE
+    map[e.keyCode] = e.type == 'keydown';
+	player.move();
+}
+
+</script>
