@@ -74,6 +74,7 @@ var mctx;
 // Constants
 var CANVAS_WIDTH = 500;
 var CANVAS_HEIGHT = 500;
+
 // Tile Data
  var mapData = 
 	[
@@ -86,7 +87,13 @@ var CANVAS_HEIGHT = 500;
 		[1, 1, 1, 0, 0, 0, 0, 0],
 		[0, 0, 0, 0, 0, 0, 0, 0]
 	];
-var map = []; // Or you could call it "key"
+	
+var tileset = new Image();
+tileset.src = 'tileset.png';
+var tileSize = 64;       // The size of a tile (32×32)
+var imageNumTiles = 2;  // The number of tiles per row in the tileset image
+
+var map = []; // Holds information on pressed keys
 
 window.onload = onAllAssetsLoaded;
 document.write("<div id='loadingMessage'>Loading...</div>");
@@ -111,14 +118,19 @@ function onAllAssetsLoaded(){
 }
 
 function gameSetup(){
+	tilesetSetup();
 	roundSetup();
 	renderBackground();
 	renderForeground();
 }
 
+function tilesetSetup(){
+
+}
+
 function roundSetup(){
 	renderCanvasInterval = setInterval(update, 5);  // game loop
-	player = new Player(1,1,64,64);
+	player = new Player(4,4,64,64);
 }
 
 
@@ -126,49 +138,34 @@ function renderBackground(){
 	bctx.clearRect(0, 0, backcanvas.width, backcanvas.height);
 	for(var x = 0; x < mapData.length; x++){
 		for(var y = 0; y < mapData[0].length; y++){
-			if(mapData[x][y] == 0){
-				bctx.fillStyle = "#ffffff";
-				bctx.fillRect(x * 64, y * 64, 64, 64);
-			}
-			else{
-				bctx.fillStyle = "#009900";
-				bctx.fillRect(x * 64, y * 64, 64, 64);
-			}
+				var tile = mapData[x][y];
+				var tileRow = (tile / imageNumTiles) | 0; // Bitwise OR operation
+				var tileCol = (tile % imageNumTiles) | 0;
+				
+				bctx.drawImage(tileset, 
+							 (tileCol * tileSize), 
+							 (tileRow * tileSize), 
+							 tileSize, 
+							 tileSize, 
+							 (x * tileSize), 
+							 (y * tileSize), 
+							 tileSize, 
+							 tileSize);
 		}
 	}
 }
 
 function renderForeground(){
 	fctx.clearRect(0, 0, forecanvas.width, forecanvas.height);
-	player.updatePlayer();
 	player.draw();
 	
 	
 }
 
 function update(){
+	player.move();
 	renderForeground();
 }
-
-/*
-function keydownHandler(e){
-	// left
-	if (e.keyCode === 37){
-        player.move(1);
-    }
-	// right
-    else if (e.keyCode === 39){
-        player.move(2);
-    }
-	// up
-	else if (e.keyCode === 38){
-        player.move(3);
-    }
-	// down
-    else if (e.keyCode === 40){
-        player.move(4);
-    }
-}*/
 
 
 onkeydown = onkeyup = function(e){
