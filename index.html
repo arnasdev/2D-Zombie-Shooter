@@ -10,8 +10,6 @@
 				border:1px solid black;
 				left: 5px;
 				top: 5px;
-				width:500px;
-				height:500px;
 				position: absolute;
 			}
 			
@@ -109,28 +107,38 @@ function onAllAssetsLoaded(){
 	backcanvas = document.getElementById("bcanvas");
     bctx = backcanvas.getContext("2d");
 	
-    forecanvas.width = CANVAS_WIDTH;
-    forecanvas.height = CANVAS_HEIGHT;
-	backcanvas.width = CANVAS_WIDTH;
-    backcanvas.height = CANVAS_HEIGHT;
-	
+ 
 	gameSetup();
 }
 
 function gameSetup(){
+	canvasSetup();
 	tilesetSetup();
 	roundSetup();
 	renderBackground();
 	renderForeground();
 }
 
-function tilesetSetup(){
+function canvasSetup(){
+	forecanvas.width = CANVAS_WIDTH;
+    forecanvas.height = CANVAS_HEIGHT;
+	backcanvas.width = CANVAS_WIDTH;
+    backcanvas.height = CANVAS_HEIGHT;
+}
 
+function tilesetSetup(){
+	
 }
 
 function roundSetup(){
 	renderCanvasInterval = setInterval(update, 5);  // game loop
-	player = new Player(4,4,64,64);
+	player = new Player(4,4,32,32);
+	characters.push(player);
+	zombie1 = new Zombie(3,3,32,32,5);
+	characters.push(zombie1);
+	zombie2 = new Zombie(5,2,32,32,5);
+	characters.push(zombie2);
+
 }
 
 
@@ -157,13 +165,21 @@ function renderBackground(){
 
 function renderForeground(){
 	fctx.clearRect(0, 0, forecanvas.width, forecanvas.height);
-	player.draw();
+	
+	// Draws all characters on foreground canvas
+	for(i = 0; i < characters.length; i++){
+		characters[i].draw();
+	}
+
 	
 	
 }
 
 function update(){
-	player.move();
+	// Draws all characters on foreground canvas
+	for(i = 0; i < characters.length; i++){
+		characters[i].move();
+	}
 	renderForeground();
 }
 
