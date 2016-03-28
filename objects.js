@@ -1,3 +1,61 @@
+/* Bullet Object */
+function Bullet(velX, velY, damage, fade){
+	this.draw = draw;
+    function draw(){
+		var tile = 4;
+		var tileRow = (tile / imageNumTiles) | 0; // Bitwise OR operation
+		var tileCol = (tile % imageNumTiles) | 0;
+		fctx.drawImage(tileset, 
+							 (tileCol * tileSize), 
+							 (tileRow * tileSize), 
+							 tileSize, 
+							 tileSize, 
+							 (x), 
+							 (y), 
+							 width, 
+							 height);
+	}
+}
+
+/* Weapon Object */
+function Weapon(fireRate, damage, automatic, soundPath){
+	// fireRate
+	// 1.00: Semi-automatic (shot and stop)
+	// 0.05: Minigun like  
+	// Values are between 0 and 1
+	var fireRate = fireRate;
+	var damage = damage;
+	var automatic = automatic;
+	
+	var sounds = [];
+	var index = 0;
+	
+	for (var i = 0; i < 4; i++){
+		sounds.push(new Audio(soundPath));
+	} 
+	
+	this.getfireRate = getfireRate;
+    function getfireRate(){
+        return fireRate;
+    }
+	
+	this.getAutomatic = getAutomatic;
+    function getAutomatic(){
+        return automatic;
+    }
+
+	this.fire = fire;
+	function fire(){
+		playSoundEvent();
+	}
+	
+	function playSoundEvent() {
+		if (window.chrome) sounds[index].load()
+		sounds[index].play()
+		index = (index + 1) % sounds.length
+	}
+}
+
 /* Player Object */
 function Player(xPos, yPos, pWidth, pHeight)
 {
@@ -7,6 +65,7 @@ function Player(xPos, yPos, pWidth, pHeight)
 	var width = pWidth;
 	var height = pHeight;
 	var playerImage = 5;
+	var weapon = shotgun;
 	
 	var acc = .2;
 	
@@ -68,6 +127,50 @@ function Player(xPos, yPos, pWidth, pHeight)
 		}
 		updatePlayer();
     }
+	
+	this.checkShoot = checkShoot;
+    function checkShoot(){
+		// If the left mouse button is clicked
+		if(mouseMap[1]){
+			// Single fire
+			if(weapon.getAutomatic() == false){
+				if(typeof singlefireInterval == 'undefined' || singlefireInterval == null){
+					shoot();
+					singlefireInterval = setInterval(singleFireInterval, weapon.getfireRate() * 1000);
+				}
+				
+			}
+			
+			// Allows rapid firing of non semi-automatic weapons
+			if(weapon.getAutomatic() == true){
+				if(typeof singlefireInterval == 'undefined' || singlefireInterval == null){
+					shoot();
+					automaticInterval = setInterval(shoot, weapon.getfireRate() * 1000);
+				}
+			}
+		}
+		// If the left mouse button is not clicked, rapid firing stops
+		else{
+			if(automaticInterval != null){
+				clearInterval(automaticInterval);
+				automaticInterval = null;
+				
+				// Stops automatic weapons being able to fire straight away after you let go of the mouse button
+				singlefireInterval = setInterval(singleFireInterval, weapon.getfireRate() * 1000);
+			}
+		}
+	}
+	
+	this.singleFireInterval = singleFireInterval;
+	function singleFireInterval(){
+		clearInterval(singlefireInterval);
+		singlefireInterval = null;
+	}
+	
+	this.shoot = shoot;
+	function shoot(){
+		weapon.fire();
+	}
 
     this.destroy = destroy;
     function destroy(){
@@ -82,16 +185,14 @@ function Player(xPos, yPos, pWidth, pHeight)
 				
 		
 		fctx.drawImage(tileset, 
-							 (tileCol * tileSize), 
-							 (tileRow * tileSize), 
-							 tileSize, 
-							 tileSize, 
-							 (x), 
-							 (y), 
-							 width, 
-							 height);
-        //fctx.fillRect(x, y, width, height);
-		//console.log("X: "+x+"\nY: "+y);
+					  (tileCol * tileSize), 
+					  (tileRow * tileSize), 
+					  tileSize, 
+					  tileSize, 
+					  (x), 
+					  (y), 
+					  width, 
+					  height);
         
     }
 
@@ -115,11 +216,15 @@ function Player(xPos, yPos, pWidth, pHeight)
         return y;
     }
 	
+	this.setWeapon = setWeapon;
+	function setWeapon(newWeapon){
+		weapon = newWeapon;
+	}
+	
 	// Updates players position
 	this.updatePlayer = updatePlayer;
 	function updatePlayer(){
 		// Make movement
-		
 		if(velX != 0 || velY != 0){
 			var nextX = x + velX;
 			var nextY = y + velY;
@@ -162,9 +267,11 @@ function Player(xPos, yPos, pWidth, pHeight)
 		resetYVelocity();
 		
 	}
+	
 	function resetXVelocity(){
 		velX = 0;
 	}
+	
 	function resetYVelocity(){
 		velY = 0;
 	}
@@ -286,6 +393,7 @@ function Player(xPos, yPos, pWidth, pHeight)
 		}
 		return true;
 	}
+	
 }
 
 
@@ -298,61 +406,39 @@ function Zombie(xPos, yPos, zWidth, zHeight, tile){
 	console.log(tile);
 	var zombieImage = tile;
 	
-	var acc = .1;
+	var acc = .05;
 	
 	var velY = 0;
     var velX = 0;
 	
-    var speed = 1.5; // max speed
-    var friction = .97; // friction
+    var speed = 2; // max speed
+    var friction = .95; // friction
 	
 	    /* public methods */
     this.move = move;
     function move()
-    {	
-		if(map[37] && map[38]){ 	// left && up
-			if (velX > -speed && velY > -speed) {
-				velX -= acc;
-				velY -= acc;
-			}
-		}
-		if(map[38] && map[39]){ 	// right && up
-			if (velX < speed && velY > -speed) {
-				velX += acc;
-				velY -= acc;
-			}
-		}
-		if(map[37] && map[40]){ 	// left && down
-			if (velX > -speed && velY < speed) {
-				velX -= acc;
+    {	// down
+		if(y < characters[0].getY()){
+			if (velY < speed) {
 				velY += acc;
 			}
 		}
-		if(map[39] && map[40]){ 	// right && down
-			if (velX < speed && velY < speed) {
-				velX += acc;
-				velY += acc;
-			}
-		}
-		
-		if(map[37]){ 					// left
-			if (velX > -speed) {
-				velX -= acc;
-			}
-		}
-		if(map[39]){ 				// right
-			if (velX < speed) {
-				velX += acc;
-			}
-		}
-		if(map[38]){ 				// up
+		//up
+		else if(y > characters[0].getY()){
 			if (velY > -speed) {
 				velY -= acc;
 			}
 		}
-		if(map[40]){ 				// down
-			if (velY < speed) {
-				velY += acc;
+		// right
+		if(x < characters[0].getX()){
+			if (velX < speed) {
+				velX += acc;
+			}
+		}
+		// left
+		else if(x > characters[0].getX()){
+			if (velX > -speed) {
+				velX -= acc;
 			}
 		}
 		updateZombie();

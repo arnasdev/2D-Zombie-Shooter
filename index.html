@@ -26,6 +26,7 @@
 			
 
 		</style>
+		<script src="https://code.jquery.com/jquery-1.10.2.js"></script>
 	</head>
 
 	<body>
@@ -65,6 +66,9 @@ var mctx;
 	var player;
 	var playerName;
 	
+
+
+	
 /**
 *
 **/
@@ -92,6 +96,8 @@ var tileSize = 64;       // The size of a tile (32×32)
 var imageNumTiles = 2;  // The number of tiles per row in the tileset image
 
 var map = []; // Holds information on pressed keys
+var mouseMap = []; // Holds information on mouse clicks
+var weapons = []; // Holds paths for weapon soundfiles
 
 window.onload = onAllAssetsLoaded;
 document.write("<div id='loadingMessage'>Loading...</div>");
@@ -114,9 +120,11 @@ function onAllAssetsLoaded(){
 function gameSetup(){
 	canvasSetup();
 	tilesetSetup();
+	weaponSetup();
 	roundSetup();
 	renderBackground();
 	renderForeground();
+	inputSetup();
 }
 
 function canvasSetup(){
@@ -124,6 +132,11 @@ function canvasSetup(){
     forecanvas.height = CANVAS_HEIGHT;
 	backcanvas.width = CANVAS_WIDTH;
     backcanvas.height = CANVAS_HEIGHT;
+}
+
+function weaponSetup(){
+	pistol = new Weapon(.15, 10, false, 'sounds/weapons/pistol-mike_koenig.mp3');
+	shotgun = new Weapon(.90, 10, true, 'sounds/weapons/shotgun-the_sun_god.mp3');
 }
 
 function tilesetSetup(){
@@ -171,8 +184,26 @@ function renderForeground(){
 		characters[i].draw();
 	}
 
-	
-	
+}
+
+function inputSetup(){
+	onkeydown = onkeyup = function(e){
+		e = e || event; // to deal with IE
+		map[e.which] = e.type == 'keydown';
+		if(e.which == 49){
+			player.setWeapon(pistol);
+		}
+		if(e.which == 50){
+			player.setWeapon(shotgun);
+		}
+		player.move();
+	}
+
+	onmousedown = onmouseup = function(e){
+		e = e || event; // to deal with IE
+		mouseMap[e.which] = e.type == 'mousedown';
+		player.checkShoot();
+	}
 }
 
 function update(){
@@ -184,10 +215,6 @@ function update(){
 }
 
 
-onkeydown = onkeyup = function(e){
-    e = e || event; // to deal with IE
-    map[e.keyCode] = e.type == 'keydown';
-	player.move();
-}
+
 
 </script>
