@@ -1,24 +1,41 @@
 /* Bullet Object */
-function Bullet(velX, velY, damage, fade){
+function Bullet(posX, posY, destX, destY, damage){
+	var x = posX;
+	var y = posY;
+	var velX = 0;
+	var velY = 0;
+	var speed = 2.5;
+	width = 8;
+	height = 2;
+	setDirection();
+	
+
+	
 	this.draw = draw;
     function draw(){
-		var tile = 4;
-		var tileRow = (tile / imageNumTiles) | 0; // Bitwise OR operation
-		var tileCol = (tile % imageNumTiles) | 0;
-		fctx.drawImage(tileset, 
-							 (tileCol * tileSize), 
-							 (tileRow * tileSize), 
-							 tileSize, 
-							 tileSize, 
-							 (x), 
-							 (y), 
-							 width, 
-							 height);
+		fctx.drawImage(projectile, x, y)
+	}
+	
+
+	function setDirection(){
+		diffX = destX-x;
+		diffY = destY-y;
+		
+		lineLength = Math.sqrt((diffX * diffX) + (diffY * diffY));
+		
+		velX = diffX/lineLength;
+		velY = diffY/lineLength;		
+	}
+	
+	this.move = move;
+	function move(){
+		x += velX * speed;
+		y += velY * speed;
 	}
 }
 
 /* Weapon Object */
-function Weapon(fireRate, damage, automatic, soundPath){
+function Weapon(fireRate, damage, bulletspershot, spread, automatic, soundPath){
 	// fireRate
 	// 1.00: Semi-automatic (shot and stop)
 	// 0.05: Minigun like  
@@ -26,6 +43,8 @@ function Weapon(fireRate, damage, automatic, soundPath){
 	var fireRate = fireRate;
 	var damage = damage;
 	var automatic = automatic;
+	var BPS = bulletspershot;
+	var spread = spread
 	
 	var sounds = [];
 	var index = 0;
@@ -45,8 +64,26 @@ function Weapon(fireRate, damage, automatic, soundPath){
     }
 
 	this.fire = fire;
-	function fire(){
+	function fire(originX, originY, destX, destY){
 		playSoundEvent();
+		for(i = 0; i < BPS; i++){
+			// For weapons that have spread
+			if(spread != 0){
+				rand = Math.floor(Math.random() * 20 + 2);
+				
+				dir = Math.floor(Math.random() * 2);
+				if(dir == 0){
+					dir = -1;
+				}
+			}
+			else{
+				dir = 0;
+				rand = 1;
+			}
+			
+			bullet = new Bullet(originX, originY, destX + (dir*rand), destY + (dir*rand), damage);
+			projectiles.push(bullet);
+		}
 	}
 	
 	function playSoundEvent() {
@@ -138,7 +175,6 @@ function Player(xPos, yPos, pWidth, pHeight)
 					shoot();
 					singlefireInterval = setInterval(singleFireInterval, weapon.getfireRate() * 1000);
 				}
-				
 			}
 			
 			// Allows rapid firing of non semi-automatic weapons
@@ -146,6 +182,8 @@ function Player(xPos, yPos, pWidth, pHeight)
 				if(typeof singlefireInterval == 'undefined' || singlefireInterval == null){
 					shoot();
 					automaticInterval = setInterval(shoot, weapon.getfireRate() * 1000);
+					// parameters can be passed in setInterval with bind
+					// http://stackoverflow.com/questions/457826/pass-parameters-in-setinterval-function
 				}
 			}
 		}
@@ -169,7 +207,7 @@ function Player(xPos, yPos, pWidth, pHeight)
 	
 	this.shoot = shoot;
 	function shoot(){
-		weapon.fire();
+		weapon.fire(x+(width/2), y+(height/2), mouseX, mouseY);
 	}
 
     this.destroy = destroy;
@@ -403,7 +441,6 @@ function Zombie(xPos, yPos, zWidth, zHeight, tile){
     var y = (yPos)*64;
 	var width = zWidth;
 	var height = zHeight;
-	console.log(tile);
 	var zombieImage = tile;
 	
 	var acc = .05;
@@ -530,6 +567,4 @@ function Zombie(xPos, yPos, zWidth, zHeight, tile){
 			//}	
 		}
 	}
-	
-	return this;
 }

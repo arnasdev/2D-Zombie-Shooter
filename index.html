@@ -62,6 +62,8 @@ var mctx;
 **/
 	// Array of NPCs and PC
 	var characters = [];
+	// Array of bullets
+	var projectiles = [];
 	// Player Object
 	var player;
 	var playerName;
@@ -72,10 +74,15 @@ var mctx;
 /**
 *
 **/
+var singlefireInterval = null;
+var automaticInterval = null;
 
 // Constants
 var CANVAS_WIDTH = 500;
 var CANVAS_HEIGHT = 500;
+
+var mouseX;
+var mouseY;
 
 // Tile Data
  var mapData = 
@@ -89,9 +96,13 @@ var CANVAS_HEIGHT = 500;
 		[1, 1, 1, 0, 0, 0, 0, 0],
 		[0, 0, 0, 0, 0, 0, 0, 0]
 	];
-	
+
 var tileset = new Image();
-tileset.src = 'tileset.png';
+tileset.src = 'images/tileset.png';
+	
+var projectile = new Image();
+projectile.src = 'images/bullet.png';
+
 var tileSize = 64;       // The size of a tile (32×32)
 var imageNumTiles = 2;  // The number of tiles per row in the tileset image
 
@@ -135,8 +146,9 @@ function canvasSetup(){
 }
 
 function weaponSetup(){
-	pistol = new Weapon(.15, 10, false, 'sounds/weapons/pistol-mike_koenig.mp3');
-	shotgun = new Weapon(.90, 10, true, 'sounds/weapons/shotgun-the_sun_god.mp3');
+	pistol = new Weapon(.15, 10, 1, 0, false, 'sounds/weapons/pistol-mike_koenig.mp3');
+	shotgun = new Weapon(.90, 10, 5, 3, true, 'sounds/weapons/shotgun-the_sun_god.mp3');
+	assault = new Weapon(.10, 10, 1, 0, true, 'sounds/weapons/pistol-mike_koenig.mp3');
 }
 
 function tilesetSetup(){
@@ -183,6 +195,10 @@ function renderForeground(){
 	for(i = 0; i < characters.length; i++){
 		characters[i].draw();
 	}
+	// Draws all projectiles on foreground canvas
+	for(i = 0; i < projectiles.length; i++){
+		projectiles[i].draw();
+	}
 
 }
 
@@ -196,9 +212,17 @@ function inputSetup(){
 		if(e.which == 50){
 			player.setWeapon(shotgun);
 		}
-		player.move();
+		if(e.which == 51){
+			player.setWeapon(assault);
+		}
+		
 	}
-
+	
+	onmousemove = function(e){
+		mouseX = e.clientX;
+		mouseY = e.clientY;
+	}
+		
 	onmousedown = onmouseup = function(e){
 		e = e || event; // to deal with IE
 		mouseMap[e.which] = e.type == 'mousedown';
@@ -211,9 +235,14 @@ function update(){
 	for(i = 0; i < characters.length; i++){
 		characters[i].move();
 	}
+	// Draws all projectiles on foreground canvas
+	for(i = 0; i < projectiles.length; i++){
+		projectiles[i].move();
+	}
 	renderForeground();
 }
 
+	
 
 
 
