@@ -74,6 +74,7 @@ function Bullet(posX, posY, destX, destY, damage){
         return hit;
     }
 	
+	
 	this.destroy = destroy;
     function destroy(){
 		clearInterval(collisionInterval);
@@ -84,9 +85,10 @@ function Bullet(posX, posY, destX, destY, damage){
 		for(i = 1; i < characters.length; i++){
 			if(getX() > characters[i].getX() && getX() < (characters[i].getX()+characters[i].getWidth()) && 
 			   getY() > characters[i].getY() && getY() < (characters[i].getY()+characters[i].getHeight())){
-				   characters[i].applyDamage(damage);
-				   destroy();
-			   }
+				characters[i].applyDamage(damage);
+				destroy();
+				i = characters.length;
+			}
 		}
 	}
 }
@@ -309,10 +311,30 @@ function Player(xPos, yPos, pWidth, pHeight)
         return y;
     }
 	
+	this.getWidth = getWidth;
+    function getWidth(){
+        return width;
+    }
+
+    this.getHeight = getHeight;
+    function getHeight(){
+        return height;
+    }
+	
 	this.setWeapon = setWeapon;
 	function setWeapon(newWeapon){
 		weapon = newWeapon;
 	}
+	
+	this.setHealth = setHealth;
+    function setHealth(newHealth){
+        health = newHealth;
+    }
+	
+	this.getHealth = getHealth;
+    function getHealth(){
+        return health;
+    }
 	
 	// Updates players position
 	this.updatePlayer = updatePlayer;
@@ -356,6 +378,9 @@ function Player(xPos, yPos, pWidth, pHeight)
 	
 	this.getDead = getDead;
     function getDead(){
+		if(health <= 0){
+			dead = true;
+		}
         return dead;
     }
 	
@@ -429,6 +454,7 @@ function Player(xPos, yPos, pWidth, pHeight)
 		var topRight = realToTile(tileX+playerWidth, tileY);
 		var topLeft = realToTile(tileX, tileY);
 		
+		
 		// Collision for bottom left corner
 		if(mapData[bottomLeft[0]][bottomLeft[1]] == 1){
 			
@@ -487,7 +513,7 @@ function Player(xPos, yPos, pWidth, pHeight)
 			xCoord = topLeft[0] * tileSize;	// These coordinates represent the top-left corner of the tile the player is colliding with
 			yCoord = topLeft[1] * tileSize;
 			// Collision above player
-			if(playerY > yCoord && playerX > xCoord && playerX < xCoord + tileSize){
+			if(playerY > yCoord && playerX > xCoord && playerX < xCoord + tileSize && playerY+playerHeight > yCoord + tileSize){
 				resetYVelocity();
 			}
 			// Collision left of player
@@ -502,28 +528,32 @@ function Player(xPos, yPos, pWidth, pHeight)
 }
 
 
-function Zombie(xPos, yPos, zWidth, zHeight, tile){
+function Ghost(xPos, yPos, zWidth, zHeight, tile, id){
 	/* private member variables */
     var x = (xPos)*tileSize;
     var y = (yPos)*tileSize;
 	var width = zWidth;
 	var height = zHeight;
-	var zombieImage = tile;
+	var ghostImage = tile;
 	var health = 100;
 	var dead = false;
+	var damage = 2;
+	var id;
+	var attackInterval = null;
 	
 	var acc = .05;
 	
 	var velY = 0;
     var velX = 0;
 	
-    var speed = 2; // max speed
+    var speed = .5; // max speed
     var friction = .95; // friction
 	
 	    /* public methods */
     this.move = move;
     function move()
-    {	// down
+    {	
+		// down
 		if(y < characters[0].getY()){
 			if (velY < speed) {
 				velY += acc;
@@ -547,17 +577,17 @@ function Zombie(xPos, yPos, zWidth, zHeight, tile){
 				velX -= acc;
 			}
 		}
-		updateZombie();
+		updateGhost();
     }
 
     this.destroy = destroy;
     function destroy(){
 		
     }
-
+	
     this.draw = draw;
     function draw(){
-		var tile = zombieImage;
+		var tile = ghostImage;
 		var tileRow = (tile / imageNumTiles) | 0; // Bitwise OR operation
 		var tileCol = (tile % imageNumTiles) | 0;
 				
@@ -622,24 +652,46 @@ function Zombie(xPos, yPos, zWidth, zHeight, tile){
 	this.destroy = destroy;
     function destroy(){
 		dead = true;
+		score += 100*round;
+		kills++;
     }
 	
+	function resetVelocity(){
+		resetXVelocity();
+		resetYVelocity();
+	}
+	
+	function resetXVelocity(){
+		velX = 0;
+	}
+	
+	function resetYVelocity(){
+		velY = 0;
+	}
+
+	
 	// Updates players position
-	this.updateZombie = updateZombie;
-	function updateZombie(){
+	this.updateGhost = updateGhost;
+	function updateGhost(){
 		// Make movement
 		if(velX != 0 || velY != 0){
 			var nextX = x + velX;
 			var nextY = y + velY;
 			
-			//if(collisionTest(nextX,nextY)){
+			var collision = false;
+			
+			for(j = 0; j < characters.length; j++){
+				if(id != j){
+					collision = ghostCollision(nextX, nextY, j);
+				}
+			}
+			if(collision == false){
 				y += velY;
 				x += velX;
-				
+					
 				velY *= friction;
-				velX *= friction;
-				
-				
+				velX *= friction;	
+					
 				// Since velocity gets infinitely smaller to 0, need to reset it at some point
 				if(velX > 0){
 					if(velX < acc/2){
@@ -661,7 +713,57 @@ function Zombie(xPos, yPos, zWidth, zHeight, tile){
 						velY = 0;
 					}
 				}
-			//}	
+			}
+			// Keep the ghosts moving even if they collide
+			else{
+				if(getX() > player.getX()){
+					x+= velX;
+				}
+				else if(getX() < player.getX()){
+					x+= velX;
+				}
+				if(getY() > player.getY()){
+					y+= velY;
+				}
+				else if(getY() < player.getY()){
+					y+= velY;
+				}
+			}
+			
+		
 		}
+	}
+	
+
+	
+	function attackPlayer(){
+		if(!gameOver){
+			var hp = player.getHealth();
+			hp = hp - damage;
+			player.setHealth(hp);
+			clearInterval(attackInterval);
+			attackInterval = null;
+		}
+	}
+	
+
+	function ghostCollision (nextX, nextY, j){
+		if((nextX > characters[j].getX() && nextX < characters[j].getX()+characters[j].getWidth() && nextY > characters[j].getY() && nextY < characters[j].getY()+characters[j].getHeight()) ||
+					   (nextX+getWidth() > characters[j].getX() && nextX+getWidth() < characters[j].getX()+characters[j].getWidth() && nextY > characters[j].getY() && nextY < characters[j].getY()+characters[j].getHeight()) ||
+					   (nextX+getWidth() > characters[j].getX() && nextX+getWidth() < characters[j].getX()+characters[j].getWidth() && nextY+getHeight() > characters[j].getY() && nextY+getHeight() < characters[j].getY()+characters[j].getHeight()) ||
+					   (nextX > characters[j].getX() && nextX < characters[j].getX()+characters[j].getWidth() && nextY+getHeight() > characters[j].getY() && nextY+getHeight() < characters[j].getY()+characters[j].getHeight())){
+						if(j == 0){
+							// If the player isn't being attacked already by this ghost, start attacking the player
+							if(attackInterval == null){
+								if(!gameOver){
+									attackPlayer();
+									attackInterval = setInterval(attackPlayer, 1000);
+								}
+							}
+							
+						}
+						return true;
+					}
+					
 	}
 }

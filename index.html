@@ -23,6 +23,26 @@
 				z-index:100;
 				font-size:50px;
 			}
+			#div
+			{
+				position: absolute;
+				left: 700px;
+				top: 10px;
+				background-color: #BBBBBB;
+			}
+			.unselectable {
+			   -moz-user-select: -moz-none;
+			   -khtml-user-select: none;
+			   -webkit-user-select: none;
+
+			   /*
+				 Introduced in IE 10.
+				 See http://ie.microsoft.com/testdrive/HTML5/msUserSelect/
+			   */
+			   -ms-user-select: none;
+			   user-select: none;
+			}
+
 			
 
 		</style>
@@ -38,11 +58,14 @@
 		<canvas id = "fcanvas" style = "z-index: 1">
 			Your browser does not support the HTML5 'Canvas' tag.
 		</canvas>
+		<div id = "div" tabIndex="-1" class = "unselectable">
+			<p id = "text" class = "unselectable" tabIndex="-1"> </p>
+		<div>
 	</body>
 </html> 
 
 
-<script src = "objects.js"></script>
+<script src = "Objects/objects.js"></script>
 <script>
 
 
@@ -56,6 +79,8 @@ var bctx;
 // Main Canvas
 var maincanvas
 var mctx;
+// Message box
+var text;
 
 /**
 *	Game State Variables
@@ -67,16 +92,35 @@ var mctx;
 	// Player Object
 	var player;
 	var playerName;
+	// FPS
+	var lastLoop = new Date;
+	var fps;
+	// Round data
 	var round = 1;
+	var minimumGhosts;
+	var maximumGhosts;
+	var score = 0;
+	var kills = 0;
+	var gameOver = false;
+	var victory = false;
+	var playOn = false;
+	var pause = false;
+	var unlockmessage1 = false;
+	var unlockmessage2 = false;
+	var countdown = 3;
+
 /**
-*
+*	Intervals
 **/
 var singlefireInterval = null;
 var automaticInterval = null;
+var ghostSpawnInterval = null;
+var fpsInterval = null;
+var windowChangedInterval = null;
 
 // Constants
-var CANVAS_WIDTH = 510;
-var CANVAS_HEIGHT = 510;
+var CANVAS_WIDTH = 638;
+var CANVAS_HEIGHT = 638;
 
 var mouseX;
 var mouseY;
@@ -84,14 +128,16 @@ var mouseY;
 // Tile Data
  var mapData = 
 	[
-		[2, 2, 2, 2, 2, 2, 2, 2],
-		[2, 2, 2, 2, 2, 2, 2, 2],
-		[2, 1, 1, 1, 2, 2, 0, 2],
-		[2, 2, 2, 2, 2, 2, 2, 2],
-		[2, 2, 0, 2, 2, 2, 2, 2],
-		[2, 2, 2, 2, 1, 1, 2, 2],
-		[1, 1, 1, 2, 2, 2, 2, 2],
-		[2, 2, 2, 2, 2, 2, 2, 2]
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+		[1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+		[1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+		[1, 2, 1, 1, 1, 2, 2, 0, 2, 1],
+		[1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+		[1, 2, 2, 0, 2, 2, 2, 2, 2, 1],
+		[1, 2, 2, 2, 2, 1, 1, 2, 2, 1],
+		[1, 2, 1, 1, 2, 2, 2, 2, 2, 1],
+		[1, 2, 2, 2, 2, 2, 2, 2, 2, 1],
+		[1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
 	];
 
 var tileset = new Image();
@@ -121,7 +167,7 @@ function onAllAssetsLoaded(){
 	backcanvas = document.getElementById("bcanvas");
     bctx = backcanvas.getContext("2d");
 	
- 
+	text = document.getElementById("text");
 	gameSetup();
 }
 
@@ -144,7 +190,7 @@ function canvasSetup(){
 
 function weaponSetup(){
 	pistol = new Weapon(.15, 34, 1, 0, false, 'sounds/weapons/pistol-mike_koenig.mp3');
-	shotgun = new Weapon(.90, 100, 5, 3, true, 'sounds/weapons/shotgun-the_sun_god.mp3');
+	shotgun = new Weapon(.90, 150, 7, 3, true, 'sounds/weapons/shotgun-the_sun_god.mp3');
 	assault = new Weapon(.10, 40, 1, 0, true, 'sounds/weapons/pistol-mike_koenig.mp3');
 }
 
@@ -153,9 +199,10 @@ function tilesetSetup(){
 }
 
 function roundSetup(){
-	renderCanvasInterval = setInterval(update, 5);  // game loop
+	renderCanvasInterval = setInterval(update, 1);  // game loop
+	fpsInterval = setInterval(calculateFPS, 1);
 	spawnPlayer();
-	spawnZombies();
+	ghostSpawnInterval = setInterval(spawnGhosts, 6000);
 }
 
 function spawnPlayer(){
@@ -163,14 +210,106 @@ function spawnPlayer(){
 	characters.push(player);
 }
 
-function spawnZombies(){
-	zombie1 = new Zombie(3,3,tileSize/2,tileSize/2,5);
-	characters.push(zombie1);
-	zombie2 = new Zombie(5,2,32,32,5);
-	characters.push(zombie2);
+function spawnGhosts(){
+		
+	if(round == 1){
+		minimumGhosts = 2;
+		maximumGhosts = 4;
+	}
+	if (round == 2){
+		minimumGhosts = 4;
+		maximumGhosts = 6;
+	}
+	if (round == 3){
+		minimumGhosts = 7;
+		maximumGhosts = 10;
+	}
+	if (round == 4){
+		minimumGhosts = 15;
+		maximumGhosts = 10;
+	}
+
+	// The minimum amount of enemies required to spawn more enemies
+	if(characters.length < minimumGhosts+1){
+		// Below code adjusts difficulty based on round
+		for(i = 0; i < maximumGhosts; i++){
+			if(round == 1){
+				if(i == 0){
+					createGhost(1,1);
+				}
+				else if(i == 1){
+					createGhost(8,8);
+				}
+				else if(i == 2){
+					createGhost(1,8);
+				}
+				else if(i == 3){
+					createGhost(8,1);
+				}
+			}
+			else if(round == 2){
+				if(i == 0){
+					createGhost(1,1);
+				}
+				else if(i == 1){
+					createGhost(8,8);
+				}
+				else if(i == 2){
+					createGhost(1,8);
+				}
+				else if(i == 3){
+					createGhost(8,1);
+				}
+				else if(i == 4){
+					createGhost(4,1);
+				}
+				else if(i == 5){
+					createGhost(4,8);
+				}
+			}
+			else if(round == 3){
+				if(i == 0){
+					createGhost(1,1);
+				}
+				else if(i == 1){
+					createGhost(8,8);
+				}
+				else if(i == 2){
+					createGhost(1,8);
+				}
+				else if(i == 3){
+					createGhost(8,1);
+				}
+				else if(i == 4){
+					createGhost(4,1);
+				}
+				else if(i == 5){
+					createGhost(4,8);
+				}
+				else if(i == 6){
+					createGhost(1,4);
+				}
+				else if(i == 7){
+					createGhost(8,4);
+				}
+				else if(i == 8){
+					createGhost(2,2);
+				}
+				else if(i == 9){
+					createGhost(8,6);
+				}
+			}
+		}
+	}
 }
 
+function createGhost(x,y){
+	var id = characters.length;
+	ghost = new Ghost(x,y,tileSize/2,tileSize/2,5, id);
+	characters.push(ghost);
+}
 
+// Below code based on http://www.creativebloq.com/html5/build-tile-based-html5-game-31410992
 function renderBackground(){
 	bctx.clearRect(0, 0, backcanvas.width, backcanvas.height);
 	for(var x = 0; x < mapData.length; x++){
@@ -203,6 +342,14 @@ function renderForeground(){
 	for(i = 0; i < projectiles.length; i++){
 		projectiles[i].draw();
 	}
+	
+	// Draw GUI
+	fctx.font = "25px Arial";
+	fctx.fillText("Health: "+player.getHealth(),10,20);
+	fctx.fillText("Score: "+score,10,50);
+	fctx.fillText("Kills: "+kills,300,20);
+	fctx.fillText("Round: "+round,300,50);
+	fctx.fillText("FPS: "+fps,CANVAS_WIDTH-150,20);
 
 }
 
@@ -210,23 +357,58 @@ function inputSetup(){
 	onkeydown = onkeyup = function(e){
 		e = e || event; // to deal with IE
 		map[e.which] = e.type == 'keydown';
+		// Pistol is available round 1
 		if(e.which == 49){
-			player.setWeapon(pistol);
+			if(round >=1){
+				player.setWeapon(pistol);
+			}
 		}
+		// Shotgun is available round 2
 		if(e.which == 50){
-			player.setWeapon(shotgun);
+			if(round >=2){
+				player.setWeapon(shotgun);
+			}
 		}
+		// Assault rifle is available round 3
 		if(e.which == 51){
-			player.setWeapon(assault);
+			if(round >=3){
+				player.setWeapon(assault);
+			}
+		}
+		// spacebar input at the end of the game
+		if(e.which == 32){
+			if(gameOver == true){
+				if(victory == true){
+					playOn = true;
+					gameOver = false;
+					ghostSpawnInterval = setInterval(spawnGhosts, 6000);
+				}
+				else{
+					restartGame();
+				}
+			}
+		}
+		// p to pause
+		if(e.which == 80){
+			if(pause == false){
+				pauseGame();
+			}
+		}
+		// enter to unpause
+		if(e.which == 13){
+			if(pause == true){
+				unpauseGame();
+			}
 		}
 		
 	}
-	
+	// Coordinates for the destination of bullets
 	onmousemove = function(e){
 		mouseX = e.clientX;
 		mouseY = e.clientY;
 	}
-		
+	
+	// Shoot on mouse down
 	onmousedown = onmouseup = function(e){
 		e = e || event; // to deal with IE
 		mouseMap[e.which] = e.type == 'mousedown';
@@ -235,27 +417,192 @@ function inputSetup(){
 }
 
 function update(){
-	// Updates next xy of all characters
-	for(i = 0; i < characters.length; i++){
-		characters[i].move();
-		if(characters[i].getDead()){
-			characters[i] = null;
-			characters.splice(i, 1);
+	if(!gameOver){
+		// The round depends on the amount of kills
+		if(kills >= 20){
+			round = 2;
+			if(unlockmessage1 == false){
+				toText("Shotgun unlocked! Press 2 to switch!");
+				unlockmessage1 = true;
+			}
+		}
+		if(kills >= 60){
+			round = 3;
+			if(unlockmessage2 == false){
+				toText("Assault rifle unlocked! Press 3 to switch!");
+				unlockmessage2 = true;
+			}
+		}
+		if(kills >= 100){
+			round = 4;
+			victory = true;
+			// Ability to play on
+			if(playOn != true){
+				gameEnd();
+			}
+			
+		}
+		// Updates all characters
+		for(i = 0; i < characters.length; i++){
+			characters[i].move();
+			if(characters[i].getDead()){
+				if(i == 0){
+					gameEnd();
+				}
+				characters[i] = null;
+				characters.splice(i, 1);
+			}
+		}
+		// Updates next xy of projectile
+		for(i = 0; i < projectiles.length; i++){
+			projectiles[i].move();
+			// Removes bullets that have hit targets
+			if(projectiles[i].getHit()){
+				projectiles.splice(i, 1);
+			}
+		}
+		renderForeground();
+	}
+	else{
+		// If victory is not achieved and the game is over, failure screen displayed
+		if(!victory){
+			showFailScreen();
+		}
+		else{
+			showVictoryScreen();
 		}
 	}
-	// Updates next xy of projectile
-	for(i = 0; i < projectiles.length; i++){
-		projectiles[i].move();
-		// Removes bullets that have hit targets
-		if(projectiles[i].getHit()){
-			projectiles.splice(i, 1);
-		}
-	}
-	renderForeground();
+	
 }
 
-	
+// This function calculates FPS
+// From http://stackoverflow.com/questions/4787431/check-fps-in-js
+function calculateFPS() { 
+    var thisLoop = new Date;
+    fps = 1000 / (thisLoop - lastLoop);
+	if(fps < 30 && pause == false){
+		pauseGame();
+		displayFPSWarning();
+	}
+    lastLoop = thisLoop;
+}
 
+function showFailScreen(){
+	fctx.clearRect(0, 0, forecanvas.width, forecanvas.height);
+	fctx.font = "25px Arial";
+	fctx.fillText("Game over!",CANVAS_WIDTH/2-65,CANVAS_HEIGHT/2);
+	fctx.fillText("Your score was: "+score,CANVAS_WIDTH/2-85,CANVAS_HEIGHT/2+30);
+	fctx.fillText("Space to restart",CANVAS_WIDTH/2-85,CANVAS_HEIGHT/2+60);
+}
 
+function showVictoryScreen(){
+	fctx.clearRect(0, 0, forecanvas.width, forecanvas.height);
+	fctx.font = "25px Arial";
+	fctx.fillText("Congratulations! You won",CANVAS_WIDTH/2-100,CANVAS_HEIGHT/2);
+	fctx.fillText("Your score was: "+score,CANVAS_WIDTH/2-85,CANVAS_HEIGHT/2+30);
+	fctx.fillText("Space to play on!",CANVAS_WIDTH/2-85,CANVAS_HEIGHT/2+60);
+}
 
+function pauseGame(){
+	clearInterval(renderCanvasInterval);
+	pause = true;
+	toText("Game paused, enter to unpause!");
+}
+
+function displayFPSWarning(){
+	fctx.font = "25px Arial";
+	toText("Warning: FPS is below 30 and the game has been paused!<br>Enter to unpause");
+}
+
+function unpauseGame(){
+	renderCanvasInterval = setInterval(update, 1);
+	pause = false;
+	fps = 200;
+}
+
+function gameEnd(){
+	gameOver = true;
+}
+
+function windowChanged(){
+	if(pause == false){
+		pauseGame();
+	}
+	else{
+		if(windowChangedInterval == null){
+			windowChangedInterval = setInterval(unpauseCountdown, 1000);
+		}
+	}
+}
+
+function unpauseCountdown(){
+	countdown--;
+	toText("Unpause countdown: "+countdown);
+	if(countdown == 0){
+		unpauseGame();
+		clearInterval(windowChangedInterval);
+		windowChangedInterval = null;
+		countdown = 3;
+	}
+}
+
+function restartGame(){
+	characters = [];
+	projectiles = [];
+	clearInterval(ghostSpawnInterval);
+	gameOver = false;
+	round = 1;
+	kills = 0;
+	score = 0;
+	health = 100;
+	clearInterval(renderCanvasInterval);
+	gameSetup();
+}
+
+function toText(newtext){
+	var oldText;
+	oldText = text.innerHTML;
+	text.innerHTML = newtext+"<br><br>";
+	text.innerHTML += oldText;
+}
+
+// Modified from http://stackoverflow.com/questions/1060008/is-there-a-way-to-detect-if-a-browser-window-is-not-currently-active
+(function() {
+  var hidden = "hidden";
+
+  // Standards:
+  if (hidden in document)
+    document.addEventListener("visibilitychange", onchange);
+  else if ((hidden = "mozHidden") in document)
+    document.addEventListener("mozvisibilitychange", onchange);
+  else if ((hidden = "webkitHidden") in document)
+    document.addEventListener("webkitvisibilitychange", onchange);
+  else if ((hidden = "msHidden") in document)
+    document.addEventListener("msvisibilitychange", onchange);
+  // IE 9 and lower:
+  else if ("onfocusin" in document)
+    document.onfocusin = document.onfocusout = onchange;
+  // All others:
+  else
+    window.onpageshow = window.onpagehide
+    = window.onfocus = window.onblur = onchange;
+
+  function onchange (evt) {
+	windowChanged();
+    var v = "visible", h = "hidden",
+        evtMap = {
+          focus:v, focusin:v, pageshow:v, blur:h, focusout:h, pagehide:h
+        };
+
+    evt = evt || window.event;
+    if (evt.type in evtMap)
+      document.body.className = evtMap[evt.type];
+    else
+      document.body.className = this[hidden] ? "hidden" : "visible";
+  }
+
+  // set the initial state (but only if browser supports the Page Visibility API)
+  if( document[hidden] !== undefined )
+    onchange({type: document[hidden] ? "blur" : "focus"});
+})();
 </script>
