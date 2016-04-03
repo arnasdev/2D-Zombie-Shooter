@@ -67,10 +67,7 @@ var mctx;
 	// Player Object
 	var player;
 	var playerName;
-	
-
-
-	
+	var round = 1;
 /**
 *
 **/
@@ -78,8 +75,8 @@ var singlefireInterval = null;
 var automaticInterval = null;
 
 // Constants
-var CANVAS_WIDTH = 500;
-var CANVAS_HEIGHT = 500;
+var CANVAS_WIDTH = 510;
+var CANVAS_HEIGHT = 510;
 
 var mouseX;
 var mouseY;
@@ -87,18 +84,18 @@ var mouseY;
 // Tile Data
  var mapData = 
 	[
-		[0, 0, 0, 0, 0, 0, 0, 0],
-		[0, 0, 0, 0, 0, 0, 0, 0],
-		[0, 1, 1, 1, 0, 0, 0, 0],
-		[0, 0, 0, 0, 0, 0, 0, 0],
-		[0, 0, 0, 0, 0, 0, 0, 0],
-		[0, 0, 0, 0, 1, 1, 0, 0],
-		[1, 1, 1, 0, 0, 0, 0, 0],
-		[0, 0, 0, 0, 0, 0, 0, 0]
+		[2, 2, 2, 2, 2, 2, 2, 2],
+		[2, 2, 2, 2, 2, 2, 2, 2],
+		[2, 1, 1, 1, 2, 2, 0, 2],
+		[2, 2, 2, 2, 2, 2, 2, 2],
+		[2, 2, 0, 2, 2, 2, 2, 2],
+		[2, 2, 2, 2, 1, 1, 2, 2],
+		[1, 1, 1, 2, 2, 2, 2, 2],
+		[2, 2, 2, 2, 2, 2, 2, 2]
 	];
 
 var tileset = new Image();
-tileset.src = 'images/tileset.png';
+tileset.src = 'images/tileset_64.png';
 	
 var projectile = new Image();
 projectile.src = 'images/bullet.png';
@@ -146,9 +143,9 @@ function canvasSetup(){
 }
 
 function weaponSetup(){
-	pistol = new Weapon(.15, 10, 1, 0, false, 'sounds/weapons/pistol-mike_koenig.mp3');
-	shotgun = new Weapon(.90, 10, 5, 3, true, 'sounds/weapons/shotgun-the_sun_god.mp3');
-	assault = new Weapon(.10, 10, 1, 0, true, 'sounds/weapons/pistol-mike_koenig.mp3');
+	pistol = new Weapon(.15, 34, 1, 0, false, 'sounds/weapons/pistol-mike_koenig.mp3');
+	shotgun = new Weapon(.90, 100, 5, 3, true, 'sounds/weapons/shotgun-the_sun_god.mp3');
+	assault = new Weapon(.10, 40, 1, 0, true, 'sounds/weapons/pistol-mike_koenig.mp3');
 }
 
 function tilesetSetup(){
@@ -157,13 +154,20 @@ function tilesetSetup(){
 
 function roundSetup(){
 	renderCanvasInterval = setInterval(update, 5);  // game loop
-	player = new Player(4,4,32,32);
+	spawnPlayer();
+	spawnZombies();
+}
+
+function spawnPlayer(){
+	player = new Player(4,4,tileSize/2,tileSize/2);
 	characters.push(player);
-	zombie1 = new Zombie(3,3,32,32,5);
+}
+
+function spawnZombies(){
+	zombie1 = new Zombie(3,3,tileSize/2,tileSize/2,5);
 	characters.push(zombie1);
 	zombie2 = new Zombie(5,2,32,32,5);
 	characters.push(zombie2);
-
 }
 
 
@@ -231,13 +235,21 @@ function inputSetup(){
 }
 
 function update(){
-	// Draws all characters on foreground canvas
+	// Updates next xy of all characters
 	for(i = 0; i < characters.length; i++){
 		characters[i].move();
+		if(characters[i].getDead()){
+			characters[i] = null;
+			characters.splice(i, 1);
+		}
 	}
-	// Draws all projectiles on foreground canvas
+	// Updates next xy of projectile
 	for(i = 0; i < projectiles.length; i++){
 		projectiles[i].move();
+		// Removes bullets that have hit targets
+		if(projectiles[i].getHit()){
+			projectiles.splice(i, 1);
+		}
 	}
 	renderForeground();
 }

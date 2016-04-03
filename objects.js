@@ -5,15 +5,18 @@ function Bullet(posX, posY, destX, destY, damage){
 	var velX = 0;
 	var velY = 0;
 	var speed = 2.5;
-	width = 8;
-	height = 2;
+	var hit = false;
+	
 	setDirection();
+	var collisionInterval = setInterval(bulletCollision, 10);
 	
 
 	
 	this.draw = draw;
     function draw(){
-		fctx.drawImage(projectile, x, y)
+		if(!hit){
+			fctx.drawImage(projectile, x, y)
+		}
 	}
 	
 
@@ -31,6 +34,60 @@ function Bullet(posX, posY, destX, destY, damage){
 	function move(){
 		x += velX * speed;
 		y += velY * speed;
+		
+		if(x > CANVAS_WIDTH){
+			destroy();
+		}
+		if(x < 0){
+			destroy();
+		}
+		if(y > CANVAS_HEIGHT){
+			destroy();
+		}
+		if(y < 0){
+			destroy();
+		}
+	}
+	
+	this.getX = getX;
+    function getX(){
+        return x;
+    }
+
+    this.getY = getY;
+    function getY(){
+        return y;
+    }
+	
+	this.setX = setX;
+    function setX(newX){
+        x = newX;
+    }
+
+    this.setY = setY;
+    function setY(newY){
+        y = newY;
+    }
+	
+	this.getHit = getHit;
+    function getHit(){
+        return hit;
+    }
+	
+	this.destroy = destroy;
+    function destroy(){
+		clearInterval(collisionInterval);
+		hit = true;
+    }
+	
+	function bulletCollision(){
+		for(i = 1; i < characters.length; i++){
+			if(getX() > characters[i].getX() && getX() < (characters[i].getX()+characters[i].getWidth()) && 
+			   getY() > characters[i].getY() && getY() < (characters[i].getY()+characters[i].getHeight())){
+				   characters[i].applyDamage(damage);
+				   destroy();
+			   }
+		}
 	}
 }
 
@@ -44,7 +101,8 @@ function Weapon(fireRate, damage, bulletspershot, spread, automatic, soundPath){
 	var damage = damage;
 	var automatic = automatic;
 	var BPS = bulletspershot;
-	var spread = spread
+	var spread = spread;
+	var bullets = [];
 	
 	var sounds = [];
 	var index = 0;
@@ -81,7 +139,7 @@ function Weapon(fireRate, damage, bulletspershot, spread, automatic, soundPath){
 				rand = 1;
 			}
 			
-			bullet = new Bullet(originX, originY, destX + (dir*rand), destY + (dir*rand), damage);
+			bullet = new Bullet(originX, originY, destX + (dir*rand), destY + (dir*rand), damage/BPS);
 			projectiles.push(bullet);
 		}
 	}
@@ -97,12 +155,14 @@ function Weapon(fireRate, damage, bulletspershot, spread, automatic, soundPath){
 function Player(xPos, yPos, pWidth, pHeight)
 {
     /* private member variables */
-    var x = (xPos)*64;
-    var y = (yPos)*64;
+    var x = (xPos)*tileSize;
+    var y = (yPos)*tileSize;
 	var width = pWidth;
 	var height = pHeight;
 	var playerImage = 5;
-	var weapon = shotgun;
+	var weapon = pistol;
+	var health = 100;
+	var dead = false;
 	
 	var acc = .2;
 	
@@ -209,12 +269,7 @@ function Player(xPos, yPos, pWidth, pHeight)
 	function shoot(){
 		weapon.fire(x+(width/2), y+(height/2), mouseX, mouseY);
 	}
-
-    this.destroy = destroy;
-    function destroy(){
-		
-    }
-
+	
     this.draw = draw;
     function draw(){
 		var tile = 4;
@@ -299,6 +354,18 @@ function Player(xPos, yPos, pWidth, pHeight)
 		}
 	}
 	
+	this.getDead = getDead;
+    function getDead(){
+        return dead;
+    }
+	
+	this.destroy = destroy;
+    function destroy(){
+		dead = true;
+    }
+	
+	
+	
 	// Called whenever we want to stop movement
 	function resetVelocity(){
 		resetXVelocity();
@@ -315,16 +382,16 @@ function Player(xPos, yPos, pWidth, pHeight)
 	}
 	
 	function realToTile(realCoordX, realCoordY){
-		var tileCoordX = parseInt(realCoordX/64);
-		var tileCoordY = parseInt(realCoordY/64);
+		var tileCoordX = parseInt(realCoordX/tileSize);
+		var tileCoordY = parseInt(realCoordY/tileSize);
 		
 		var coords = [tileCoordX, tileCoordY];
 		return coords;
 	}
 
 	function tileToReal(tileCoordX, tileCoordY){
-		var realCoordX = tileCoordX * 64;
-		var realCoordY = tileCoordY * 64;
+		var realCoordX = tileCoordX * tileSize;
+		var realCoordY = tileCoordY * tileSize;
 		
 		var coords = [realCoordX, realCoordY];
 		return coords;
@@ -353,8 +420,8 @@ function Player(xPos, yPos, pWidth, pHeight)
 		//var right; // 39
 		
 		// Next position tile coordinates
-		mapCoordX = parseInt(xPos/64);
-		mapCoordY = parseInt(yPos/64);
+		mapCoordX = parseInt(xPos/tileSize);
+		mapCoordY = parseInt(yPos/tileSize);
 		
 		
 		var bottomLeft = realToTile(tileX, tileY+playerHeight);
@@ -365,8 +432,8 @@ function Player(xPos, yPos, pWidth, pHeight)
 		// Collision for bottom left corner
 		if(mapData[bottomLeft[0]][bottomLeft[1]] == 1){
 			
-			xCoord = bottomLeft[0] * 64;	// These coordinates represent the top-left corner of the tile the player is colliding with
-			yCoord = bottomLeft[1] * 64;
+			xCoord = bottomLeft[0] * tileSize;	// These coordinates represent the top-left corner of the tile the player is colliding with
+			yCoord = bottomLeft[1] * tileSize;
 			
 			// Collision below player
 			if(playerY+playerHeight < yCoord && playerX > xCoord && playerX < xCoord+tileSize){
@@ -383,8 +450,8 @@ function Player(xPos, yPos, pWidth, pHeight)
 		if(mapData[bottomRight[0]][bottomRight[1]] == 1){
 			
 			
-			xCoord = bottomRight[0] * 64;	// These coordinates represent the top-left corner of the tile the player is colliding with
-			yCoord = bottomRight[1] * 64;
+			xCoord = bottomRight[0] * tileSize;	// These coordinates represent the top-left corner of the tile the player is colliding with
+			yCoord = bottomRight[1] * tileSize;
 			
 			// Collision below player
 			if(playerY+playerHeight < yCoord && playerX+playerWidth > xCoord && playerX+playerWidth < xCoord+tileSize){
@@ -400,8 +467,8 @@ function Player(xPos, yPos, pWidth, pHeight)
 		// Collision for top right corner
 		if(mapData[topRight[0]][topRight[1]] == 1){
 				
-			xCoord = topRight[0] * 64;	// These coordinates represent the top-left corner of the tile the player is colliding with
-			yCoord = topRight[1] * 64;
+			xCoord = topRight[0] * tileSize;	// These coordinates represent the top-left corner of the tile the player is colliding with
+			yCoord = topRight[1] * tileSize;
 			
 			// Collision above player
 			if(playerX+playerWidth > xCoord && playerY > yCoord && playerX+playerWidth < xCoord+tileSize){
@@ -417,8 +484,8 @@ function Player(xPos, yPos, pWidth, pHeight)
 		// Collision for top left corner
 		if(mapData[topLeft[0]][topLeft[1]] == 1){
 			
-			xCoord = topLeft[0] * 64;	// These coordinates represent the top-left corner of the tile the player is colliding with
-			yCoord = topLeft[1] * 64;
+			xCoord = topLeft[0] * tileSize;	// These coordinates represent the top-left corner of the tile the player is colliding with
+			yCoord = topLeft[1] * tileSize;
 			// Collision above player
 			if(playerY > yCoord && playerX > xCoord && playerX < xCoord + tileSize){
 				resetYVelocity();
@@ -437,11 +504,13 @@ function Player(xPos, yPos, pWidth, pHeight)
 
 function Zombie(xPos, yPos, zWidth, zHeight, tile){
 	/* private member variables */
-    var x = (xPos)*64;
-    var y = (yPos)*64;
+    var x = (xPos)*tileSize;
+    var y = (yPos)*tileSize;
 	var width = zWidth;
 	var height = zHeight;
 	var zombieImage = tile;
+	var health = 100;
+	var dead = false;
 	
 	var acc = .05;
 	
@@ -527,11 +596,38 @@ function Zombie(xPos, yPos, zWidth, zHeight, tile){
         return y;
     }
 	
+	this.getWidth = getWidth;
+    function getWidth(){
+        return width;
+    }
+
+    this.getHeight = getHeight;
+    function getHeight(){
+        return height;
+    }
+	
+	this.applyDamage = applyDamage;
+    function applyDamage(damage){
+        health = health - damage;
+		if(health <= 0){
+			destroy();
+		}
+    }
+	
+	this.getDead = getDead;
+    function getDead(){
+        return dead;
+    }
+	
+	this.destroy = destroy;
+    function destroy(){
+		dead = true;
+    }
+	
 	// Updates players position
 	this.updateZombie = updateZombie;
 	function updateZombie(){
 		// Make movement
-		
 		if(velX != 0 || velY != 0){
 			var nextX = x + velX;
 			var nextY = y + velY;
@@ -542,6 +638,7 @@ function Zombie(xPos, yPos, zWidth, zHeight, tile){
 				
 				velY *= friction;
 				velX *= friction;
+				
 				
 				// Since velocity gets infinitely smaller to 0, need to reset it at some point
 				if(velX > 0){
